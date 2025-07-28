@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Attendance Check-in</title>
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .incognito-warning {
+            background: #ff6b6b;
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-container {
+            padding: 32px 20px 24px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #fff;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .datalist-input {
+            position: relative;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status-indicators {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .status-item.checking {
+            background: #fff3cd;
+            border-left: 3px solid #ffc107;
+        }
+
+        .status-item.success {
+            background: #d1edff;
+            border-left: 3px solid #0066cc;
+        }
+
+        .status-item.error {
+            background: #f8d7da;
+            border-left: 3px solid #dc3545;
+        }
+
+        .status-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .status-icon.checking {
+            background: #ffc107;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-icon.success {
+            background: #28a745;
+        }
+
+        .status-icon.error {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .success-message {
+            display: none;
+            text-align: center;
+            padding: 24px;
+            background: #d1edff;
+            border-radius: 12px;
+            margin-top: 20px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .success-message h3 {
+            color: #0066cc;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        .success-message p {
+            color: #0066cc;
+            font-size: 14px;
+        }
+
+        .error-message {
+            display: none;
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+            font-size: 14px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 480px) {
+            body {
+                padding: 8px;
+            }
+
+            .container {
+                border-radius: 12px;
+            }
+
+            .header {
+                padding: 20px 16px;
+            }
+
+            .form-container {
+                padding: 24px 16px 20px;
+            }
+
+            .status-indicators {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Prevent zoom on iOS */
+        @media screen and (-webkit-min-device-pixel-ratio: 0) {
+
+            select:focus,
+            textarea:focus,
+            input:focus {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 Attendance Check-in</h1>
+            <p>Please verify your identity and submit attendance</p>
+        </div>
+
+        <div class="incognito-warning" id="incognitoWarning">
+            ⚠️ Private/Incognito mode detected. Please use normal browsing mode for security verification.
+        </div>
+
+        <div class="form-container">
+            <div class="status-indicators">
+                <div class="status-item checking" id="fingerprintStatus">
+                    <div class="status-icon checking">⏳</div>
+                    <span>Loading Security...</span>
+                </div>
+                <div class="status-item" id="tokenStatus">
+                    <div class="status-icon checking">⏳</div>
+                    <span>Validating Token...</span>
+                </div>
+                <div class="status-item" id="interactionStatus">
+                    <div class="status-icon checking">⏳</div>
+                    <span>Awaiting Interaction...</span>
+                </div>
+            </div>
+
+            <form id="attendanceForm">
+                <!-- Hidden inputs -->
+                <input type="hidden" id="token" name="token" value="">
+                <input type="hidden" id="currentDate" name="currentDate" value="">
+                <input type="hidden" id="deviceFingerprint" name="deviceFingerprint" value="">
+                <input type="hidden" id="hasInteracted" name="hasInteracted" value="false">
+
+                <div class="form-group">
+                    <label for="studentName">👤 Your Name</label>
+                    <input type="text" id="studentName" name="studentName" class="form-control" list="studentList"
+                        placeholder="Start typing your name..." required autocomplete="off">
+                    <datalist id="studentList">
+                        <option value="Raghu Sharma">
+                        <option value="Priya Patel">
+                        <option value="Akash Kumar">
+                        <option value="Sneha Reddy">
+                        <option value="Vikram Singh">
+                        <option value="Kavya Nair">
+                        <option value="Arjun Gupta">
+                        <option value="Meera Joshi">
+                        <option value="Rohit Verma">
+                        <option value="Anita Desai">
+                        <option value="Karan Mehta">
+                        <option value="Divya Iyer">
+                        <option value="Sanjay Rao">
+                        <option value="Neha Agarwal">
+                        <option value="Amit Jain">
+                        <option value="Pooja Sharma">
+                        <option value="Ravi Tiwari">
+                        <option value="Shweta Pandey">
+                        <option value="Deepak Yadav">
+                        <option value="Aishwarya Das">
+                    </datalist>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn" disabled>
+                    <span class="loading-spinner" id="loadingSpinner"></span>
+                    Submit Attendance
+                </button>
+            </form>
+
+            <div class="success-message" id="successMessage">
+                <h3>✅ Success!</h3>
+                <p>Your attendance has been recorded successfully.</p>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        // Validate token on page load
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+
+        if (!validateToken(token)) {
+            alert("Invalid or expired QR code. Please scan again.");
+            window.location.href = "invalid.html"; // Redirect to error page
+        }
+
+        function validateToken(token) {
+            try {
+                const payload = JSON.parse(atob(token));
+                return payload.class === "CSE-101" &&
+                    Date.now() < payload.expiry;
+            } catch {
+                return false;
+            }
+        }
+        // Configuration
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+
+        // State management
+        let fingerprintReady = false;
+        let tokenValid = false;
+        let hasInteracted = false;
+        let formSubmitted = false;
+
+        // DOM elements
+        const form = document.getElementById('attendanceForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const incognitoWarning = document.getElementById('incognitoWarning');
+
+        // Status indicators
+        const fingerprintStatus = document.getElementById('fingerprintStatus');
+        const tokenStatus = document.getElementById('tokenStatus');
+        const interactionStatus = document.getElementById('interactionStatus');
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            initializeForm();
+        });
+
+        async function initializeForm() {
+            // Set current date
+            document.getElementById('currentDate').value = new Date().toISOString().split('T')[0];
+
+            // Parse and validate token from URL
+            parseToken();
+
+            // Check for incognito mode
+            await checkIncognitoMode();
+
+            // Initialize device fingerprint
+            await initializeFingerprint();
+
+            // Setup interaction listeners
+            setupInteractionListeners();
+
+            // Update submit button state
+            updateSubmitButton();
+        }
+
+        function parseToken() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+
+            if (token && token.includes('.')) {
+                // Basic JWT-like token validation (has dots)
+                document.getElementById('token').value = token;
+                tokenValid = true;
+                updateStatusIndicator(tokenStatus, 'success', '✓', 'Token Valid');
+            } else {
+                updateStatusIndicator(tokenStatus, 'error', '✗', 'Invalid Token');
+            }
+        }
+
+        async function checkIncognitoMode() {
+            try {
+                // Modern incognito detection using storage estimate
+                if ('storage' in navigator && 'estimate' in navigator.storage) {
+                    const estimate = await navigator.storage.estimate();
+                    const isIncognito = estimate.quota < 120000000; // Less than ~120MB usually indicates incognito
+
+                    if (isIncognito) {
+                        incognitoWarning.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.log('Could not detect incognito mode');
+            }
+        }
+
+        async function initializeFingerprint() {
+            try {
+                // Load FingerprintJS
+                const fp = await FingerprintJS.load({
+                    apiKey: 'demo' // Use 'demo' for testing, replace with actual API key for production
+                });
+
+                // Get the visitor identifier
+                const result = await fp.get();
+                const fingerprint = result.visitorId;
+
+                document.getElementById('deviceFingerprint').value = fingerprint;
+                fingerprintReady = true;
+                updateStatusIndicator(fingerprintStatus, 'success', '✓', 'Security Loaded');
+                updateSubmitButton();
+
+            } catch (error) {
+                console.error('Fingerprint initialization failed:', error);
+                updateStatusIndicator(fingerprintStatus, 'error', '✗', 'Security Error');
+            }
+        }
+
+        function setupInteractionListeners() {
+            const events = ['mousedown', 'keydown', 'touchstart'];
+
+            function handleInteraction() {
+                if (!hasInteracted) {
+                    hasInteracted = true;
+                    document.getElementById('hasInteracted').value = 'true';
+                    updateStatusIndicator(interactionStatus, 'success', '✓', 'Interaction Verified');
+                    updateSubmitButton();
+
+                    // Remove listeners after first interaction
+                    events.forEach(event => {
+                        document.removeEventListener(event, handleInteraction);
+                    });
+                }
+            }
+
+            events.forEach(event => {
+                document.addEventListener(event, handleInteraction);
+            });
+        }
+
+        function updateStatusIndicator(element, status, icon, text) {
+            element.className = `status-item ${status}`;
+            element.querySelector('.status-icon').className = `status-icon ${status}`;
+            element.querySelector('.status-icon').textContent = icon;
+            element.querySelector('span').textContent = text;
+        }
+
+        function updateSubmitButton() {
+            const canSubmit = fingerprintReady && tokenValid && hasInterracted && !formSubmitted;
+            submitBtn.disabled = !canSubmit;
+        }
+
+        // Form submission handler
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            if (formSubmitted) return;
+
+            const studentName = document.getElementById('studentName').value.trim();
+            if (!studentName) {
+                showError('Please enter your name');
+                return;
+            }
+
+            // Prevent double submission
+            formSubmitted = true;
+            submitBtn.disabled = true;
+            loadingSpinner.style.display = 'inline-block';
+            submitBtn.innerHTML = '<span class="loading-spinner" style="display: inline-block;"></span> Submitting...';
+
+            try {
+                // Prepare form data
+                const formData = new FormData(this);
+
+                // Submit to Google Apps Script
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: formData,
+                    mode: 'no-cors' // Required for Google Apps Script
+                });
+
+                // Since mode is 'no-cors', we can't read the response
+                // Assume success if no error is thrown
+                showSuccess();
+
+            } catch (error) {
+                console.error('Submission error:', error);
+                showError('Failed to submit attendance. Please try again.');
+
+                // Reset form state on error
+                formSubmitted = false;
+                updateSubmitButton();
+                resetSubmitButton();
+            }
+        });
+
+        function showSuccess() {
+            form.style.display = 'none';
+            successMessage.style.display = 'block';
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+
+            // Hide error after 5 seconds
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        function resetSubmitButton() {
+            loadingSpinner.style.display = 'none';
+            submitBtn.innerHTML = 'Submit Attendance';
+        }
+
+        // Add smooth scrolling for better mobile experience
+        document.getElementById('studentName').addEventListener('focus', function () {
+            setTimeout(() => {
+                this.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        });
+
+        // Prevent form resubmission on page refresh
+        window.addEventListener('beforeunload', function () {
+            if (formSubmitted) {
+                sessionStorage.setItem('attendanceSubmitted', 'true');
+            }
+        });
+
+        // Check if form was already submitted
+        if (sessionStorage.getItem('attendanceSubmitted') === 'true') {
+            showSuccess();
+            sessionStorage.removeItem('attendanceSubmitted');
+        }
+    </script>
+</body>
+
+</html>
